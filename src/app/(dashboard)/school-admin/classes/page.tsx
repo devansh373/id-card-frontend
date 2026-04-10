@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,7 +55,13 @@ export default function AcademicSetupPage() {
       toast.success('Class created successfully');
       queryClient.invalidateQueries({ queryKey: ['classes'] });
     },
-    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to create class')
+    onError: (err: unknown) => {
+      if (axios.isAxiosError<{ message: string }>(err)) {
+        toast.error(err.response?.data?.message || 'Failed to create class');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
+    }
   });
 
   const deleteClassMutation = useMutation({
@@ -64,7 +71,13 @@ export default function AcademicSetupPage() {
       if (selectedClassId === deletedId) setSelectedClassId(null);
       queryClient.invalidateQueries({ queryKey: ['classes'] });
     },
-    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to delete class')
+    onError: (err: unknown) => {
+      if (axios.isAxiosError<{ message: string }>(err)) {
+        toast.error(err.response?.data?.message || 'Failed to delete class');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
+    }
   });
 
   const createSectionMutation = useMutation({
@@ -73,7 +86,13 @@ export default function AcademicSetupPage() {
       toast.success('Section created successfully');
       queryClient.invalidateQueries({ queryKey: ['sections', selectedClassId] });
     },
-    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to create section')
+    onError: (err: unknown) => {
+      if (axios.isAxiosError<{ message: string }>(err)) {
+        toast.error(err.response?.data?.message || 'Failed to create section');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
+    }
   });
 
   const deleteSectionMutation = useMutation({
@@ -82,7 +101,13 @@ export default function AcademicSetupPage() {
       toast.success('Section deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['sections', selectedClassId] });
     },
-    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to delete section')
+    onError: (err: unknown) => {
+      if (axios.isAxiosError<{ message: string }>(err)) {
+        toast.error(err.response?.data?.message || 'Failed to delete section');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
+    }
   });
 
   // --- Forms ---
@@ -211,7 +236,7 @@ export default function AcademicSetupPage() {
                 </DialogHeader>
                 <form onSubmit={classForm.handleSubmit(onClassSubmit)} className="space-y-4 pt-4">
                   <div className="space-y-1.5">
-                    <Label>Class Name (e.g. "Grade 10", "X", "Senior")</Label>
+                    <Label>Class Name (e.g. &quot;Grade 10&quot;, &quot;X&quot;, &quot;Senior&quot;)</Label>
                     <Input {...classForm.register('name')} placeholder="Enter class name" autoFocus />
                     {classForm.formState.errors.name && <p className="text-xs text-rose-500">{classForm.formState.errors.name.message}</p>}
                   </div>
@@ -258,7 +283,7 @@ export default function AcademicSetupPage() {
                 </DialogHeader>
                 <form onSubmit={sectionForm.handleSubmit(onSectionSubmit)} className="space-y-4 pt-4">
                   <div className="space-y-1.5">
-                    <Label>Section Name (e.g. "A", "Blue", "Science")</Label>
+                    <Label>Section Name (e.g. &quot;A&quot;, &quot;Blue&quot;, &quot;Science&quot;)</Label>
                     <Input {...sectionForm.register('name')} placeholder="Enter section name" autoFocus />
                     {sectionForm.formState.errors.name && <p className="text-xs text-rose-500">{sectionForm.formState.errors.name.message}</p>}
                   </div>

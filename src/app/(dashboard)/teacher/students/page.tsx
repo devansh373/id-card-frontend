@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
 import { useDebounce } from 'use-debounce';
-import { Search, Upload, UserX, User2, ImagePlus, Loader2, FileSpreadsheet } from 'lucide-react';
+import { Search,  User2, ImagePlus, Loader2, FileSpreadsheet } from 'lucide-react';
 
 import { studentService } from '@/features/students/services/student-service';
 import type { Student } from '@/types/student';
@@ -51,7 +52,13 @@ export default function TeacherStudentsPage() {
         setFile([]);
         queryClient.invalidateQueries({ queryKey: ['students'] });
       },
-      onError: (err: any) => toast.error(err?.response?.data?.message || 'Upload failed')
+      onError: (err: unknown) => {
+        if (axios.isAxiosError<{ message: string }>(err)) {
+          toast.error(err.response?.data?.message || 'Upload failed');
+        } else {
+          toast.error('An unexpected error occurred');
+        }
+      }
     });
 
     const handleSave = () => {

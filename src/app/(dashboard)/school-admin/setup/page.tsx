@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import axios from 'axios';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Loader2, Settings, PenTool, Image as ImageIcon, Link as LinkIcon, Building2 } from 'lucide-react';
+import { Loader2, PenTool , Link as LinkIcon, Building2 } from 'lucide-react';
 
 import { schoolService } from '@/features/schools/services/school-service';
 import { 
@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
 export default function SchoolSetupPage() {
@@ -84,7 +84,7 @@ export default function SchoolSetupPage() {
 // ----------------------------------------------------------------------
 // FORM 1: General Setup
 // ----------------------------------------------------------------------
-function GeneralSetupForm({ school, onSuccess }: { school?: any, onSuccess: () => void }) {
+function GeneralSetupForm({ school, onSuccess }: { school?: import('@/types/school').SchoolProfile, onSuccess: () => void }) {
   const form = useForm<GeneralSetupFormValues>({
     resolver: zodResolver(generalSetupSchema),
     defaultValues: {
@@ -114,8 +114,12 @@ function GeneralSetupForm({ school, onSuccess }: { school?: any, onSuccess: () =
       toast.success('School profile updated successfully');
       onSuccess();
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Failed to update profile');
+    onError: (err: unknown) => {
+      if (axios.isAxiosError<{ message: string }>(err)) {
+        toast.error(err.response?.data?.message || 'Failed to update profile');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
     }
   });
 
@@ -241,7 +245,7 @@ function GeneralSetupForm({ school, onSuccess }: { school?: any, onSuccess: () =
 // ----------------------------------------------------------------------
 // FORM 2: Signatures Setup
 // ----------------------------------------------------------------------
-function SignaturesForm({ school, onSuccess }: { school?: any, onSuccess: () => void }) {
+function SignaturesForm({ school, onSuccess }: { school?: import('@/types/school').SchoolProfile, onSuccess: () => void }) {
   const form = useForm<SignaturesFormValues>({
     resolver: zodResolver(signaturesSchema),
     defaultValues: { principal: [], authority: [] },
@@ -261,8 +265,12 @@ function SignaturesForm({ school, onSuccess }: { school?: any, onSuccess: () => 
       form.reset({ principal: [], authority: [] });
       onSuccess();
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Failed to upload signatures');
+    onError: (err: unknown) => {
+      if (axios.isAxiosError<{ message: string }>(err)) {
+        toast.error(err.response?.data?.message || 'Failed to upload signatures');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
     }
   });
 
@@ -346,7 +354,7 @@ function SignaturesForm({ school, onSuccess }: { school?: any, onSuccess: () => 
 // ----------------------------------------------------------------------
 // FORM 3: ImageKit Setup
 // ----------------------------------------------------------------------
-function ImageKitForm({ school, onSuccess }: { school?: any, onSuccess: () => void }) {
+function ImageKitForm({ school, onSuccess }: { school?: import('@/types/school').SchoolProfile, onSuccess: () => void }) {
   const form = useForm<ImageKitFormValues>({
     resolver: zodResolver(imageKitSchema),
     defaultValues: {
@@ -368,8 +376,12 @@ function ImageKitForm({ school, onSuccess }: { school?: any, onSuccess: () => vo
       form.setValue('imagekitPrivateKey', ''); 
       onSuccess();
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Failed to update integration');
+    onError: (err: unknown) => {
+      if (axios.isAxiosError<{ message: string }>(err)) {
+        toast.error(err.response?.data?.message || 'Failed to update integration');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
     }
   });
 

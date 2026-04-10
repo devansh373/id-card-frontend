@@ -123,7 +123,10 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Main navigation">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          const isDashboard = item.label === 'Dashboard';
+          const isActive = isDashboard 
+            ? pathname === item.href 
+            : pathname === item.href || pathname.startsWith(item.href + '/');
           const Icon = item.icon;
 
           return (

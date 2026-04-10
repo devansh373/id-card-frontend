@@ -1,0 +1,243 @@
+'use client';
+
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { toast } from 'sonner';
+import { ColumnDef } from '@tanstack/react-table';
+import { 
+  School, 
+  Plus, 
+  Search, 
+  Loader2, 
+  Building2, 
+  Mail, 
+  Fingerprint, 
+  Calendar,
+  ExternalLink
+} from 'lucide-react';
+
+import { adminService } from '@/features/admin/services/admin-service';
+import { registerSchoolSchema, type RegisterSchoolFormValues } from '@/lib/validators/admin';
+import type { SchoolProfile } from '@/types/school';
+
+import { DataTable } from '@/components/tables/data-table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+
+export default function SchoolsManagementPage() {
+  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // --- Fetch Schools ---
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-schools', page],
+    queryFn: () => adminService.getSchools(page, 10),
+  });
+
+  // --- Registration Mutation ---
+  const registrationForm = useForm<RegisterSchoolFormValues>({
+    resolver: zodResolver(registerSchoolSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      adminEmail: '',
+    }
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: (values: RegisterSchoolFormValues) => adminService.registerSchool(values),
+    onSuccess: () => {
+      toast.success('School registered successfully. Credentials sent to admin email.');
+      setIsDialogOpen(false);
+      registrationForm.reset();
+      queryClient.invalidateQueries({ queryKey: ['admin-schools'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Failed to register school');
+    }
+  });
+
+  // --- Table Columns ---
+  const columns: ColumnDef<SchoolProfile>[] = [
+    {
+      accessorKey: 'name',
+      header: 'School Details',
+      cell: ({ row }) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-slate-700">{row.original.name}</span>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <Badge variant="secondary" className="text-[10px] font-mono h-4 px-1.5">
+              {row.original.code}
+            </Badge>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'adminEmail',
+      header: 'Administrator',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 text-slate-600">
+          <Mail className="w-3.5 h-3.5 text-slate-400" />
+          <span className="text-sm">{row.original.adminEmail}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Onboarded On',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 text-slate-500">
+          <Calendar className="w-3.5 h-3.5" />
+          <span className="text-sm">
+            {new Date(row.original.createdAt).toLocaleDateString(undefined, {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            })}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">Actions</div>,
+      cell: () => (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 gap-2">
+            View Profile <ExternalLink className="w-3 h-3" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="p-8 w-full max-w-7xl mx-auto flex flex-col gap-8">
+      
+      {/* Header Area */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1E293B] mb-1">School Management</h1>
+          <p className="text-slate-500 text-sm">Onboard new educational institutions and manage system-wide school profiles.</p>
+        </div>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger>
+            <Button className="bg-[#1E293B] hover:bg-[#334155] gap-2 shadow-lg shadow-indigo-500/10">
+              <Plus className="w-4 h-4" />
+              Onboard New School
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Register School</DialogTitle>
+              <DialogDescription>
+                Create a new school account. Temporary credentials will be sent to the administrator email provided.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={registrationForm.handleSubmit((v) => registerMutation.mutate(v))} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full School Name</Label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input 
+                    id="name" 
+                    {...registrationForm.register('name')} 
+                    placeholder="e.g. Springfield International School" 
+                    className="pl-9 h-11"
+                  />
+                </div>
+                {registrationForm.formState.errors.name && (
+                  <p className="text-xs text-rose-500 font-medium">{registrationForm.formState.errors.name.message}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="code">School Code (Unique Id)</Label>
+                  <div className="relative">
+                    <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input 
+                      id="code" 
+                      {...registrationForm.register('code')} 
+                      placeholder="e.g. SIS001" 
+                      className="pl-9 h-11 uppercase"
+                    />
+                  </div>
+                  {registrationForm.formState.errors.code && (
+                    <p className="text-xs text-rose-500 font-medium">{registrationForm.formState.errors.code.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Admin Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input 
+                      id="email" 
+                      {...registrationForm.register('adminEmail')} 
+                      placeholder="admin@school.com" 
+                      className="pl-9 h-11"
+                    />
+                  </div>
+                  {registrationForm.formState.errors.adminEmail && (
+                    <p className="text-xs text-rose-500 font-medium">{registrationForm.formState.errors.adminEmail.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 h-11 text-base shadow-lg shadow-emerald-500/10"
+                  disabled={registerMutation.isPending}
+                >
+                  {registerMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Registering School...
+                    </>
+                  ) : (
+                    'Confirm & Send Credentials'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Main Content Area */}
+      <Card className="border-slate-200 shadow-sm overflow-hidden">
+        <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-lg text-[#1E293B]">All Schools</CardTitle>
+            <CardDescription className="text-xs">System-wide directory of all educational entities.</CardDescription>
+          </div>
+          {isLoading && <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />}
+        </CardHeader>
+        <CardContent className="p-0">
+          <DataTable 
+            columns={columns}
+            data={data?.data || []}
+            isLoading={isLoading}
+            pageCount={data?.pagination?.totalPages}
+            currentPage={page}
+            onPaginationChange={setPage}
+            emptyMessage="No schools onboarded yet. Get started by adding your first school."
+          />
+        </CardContent>
+      </Card>
+
+    </div>
+  );
+}
