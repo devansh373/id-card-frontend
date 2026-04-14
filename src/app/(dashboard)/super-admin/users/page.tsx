@@ -1,20 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
 import { 
   Users, 
   Search, 
   Loader2, 
-  UserCog, 
   ShieldCheck, 
   Printer, 
   GraduationCap, 
   UserCircle,
   CheckCircle2,
   XCircle,
-  Hash
+  Hash,
+  Plus,
+  MoreHorizontal,
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 import { adminService, type UserFilters } from '@/features/admin/services/admin-service';
@@ -26,10 +29,18 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 import { EditUserDialog } from '@/features/admin/components/edit-user-dialog';
+import { CreateUserDialog } from '@/features/admin/components/create-user-dialog';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+
 import { useDebounce } from 'use-debounce';
+import { toast } from 'sonner';
 
 export default function UsersManagementPage() {
+  const queryClient = useQueryClient();
+
   // --- Filter & Pagination State ---
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -49,7 +60,26 @@ export default function UsersManagementPage() {
     placeholderData: (prev) => prev,
   });
 
+  // Dialog States
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // --- Delete Mutation ---
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
+    try {
+      await adminService.deleteUser(userToDelete.id);
+      toast.success('User deactivated successfully.');
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Failed to deactivate user');
+      throw err;
+    }
+  };
 
   // --- Table Columns ---
   const columns: ColumnDef<UserProfile>[] = [
@@ -82,13 +112,13 @@ export default function UsersManagementPage() {
           VENDOR: { label: 'Vendor', icon: Printer, color: 'text-amber-700 bg-amber-50 border-amber-200' },
         }[role];
 
-        const Icon = config.icon;
+        const Icon = config.icon || UserCircle;
         
         return (
           <div className="space-y-1 flex flex-col items-start">
-            <Badge variant="outline" className={`font-medium shadow-sm flex items-center gap-1 pl-1 ${config.color}`}>
+            <Badge variant="outline" className={`font-medium shadow-sm flex items-center gap-1 pl-1 ${config?.color || ''}`}>
               <Icon className="w-3 h-3" />
-              {config.label}
+              {config?.label || role}
             </Badge>
             {row.original.school && (
               <span className="text-[10px] text-slate-400 font-medium px-1 flex items-center gap-1">
@@ -125,16 +155,30 @@ export default function UsersManagementPage() {
       id: 'actions',
       header: () => <div className="text-right">Manage</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setEditingUser(row.original)}
-            className="text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
-          >
-            <UserCog className="w-4 h-4 mr-2" />
-            Edit Profile
-          </Button>
+        <div className="flex justify-end pr-2">
+          <DropdownMenu>
+             <DropdownMenuTrigger render={<Button variant="ghost" className="h-8 w-8 p-0" />}>
+                 <span className="sr-only">Open menu</span>
+                 <MoreHorizontal className="h-4 w-4" />
+             </DropdownMenuTrigger>
+             <DropdownMenuContent align="end" className="w-[160px]">
+               <DropdownMenuItem
+                 className="gap-2 cursor-pointer text-indigo-700 focus:text-indigo-700"
+                 onClick={() => setEditingUser(row.original)}
+               >
+                 <Edit className="w-4 h-4" /> Edit Profile
+               </DropdownMenuItem>
+               <DropdownMenuItem
+                 className="gap-2 cursor-pointer text-rose-600 focus:text-rose-600"
+                 onClick={() => {
+                   setUserToDelete(row.original);
+                   setIsDeleteDialogOpen(true);
+                 }}
+               >
+                 <Trash2 className="w-4 h-4" /> Deactivate
+               </DropdownMenuItem>
+             </DropdownMenuContent>
+           </DropdownMenu>
         </div>
       ),
     },
@@ -149,9 +193,23 @@ export default function UsersManagementPage() {
         <p className="text-slate-500 text-sm">Monitor and manage all accounts, roles, and administrative permissions across the ecosystem.</p>
       </div>
 
+      <CreateUserDialog 
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+      />
+
       <EditUserDialog 
         user={editingUser} 
         onClose={() => setEditingUser(null)} 
+      />
+
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Deactivate System User"
+        description={<>Are you sure you want to deactivate <b>{userToDelete?.email}</b>? This user will no longer be able to log in to the system.</>}
+        onConfirm={handleDeleteConfirm}
+        confirmText="Deactivate User"
       />
 
       {/* Main Table Card */}
@@ -191,9 +249,12 @@ export default function UsersManagementPage() {
 
           <div className="flex items-center gap-3">
              {isFetching && <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />}
-             <div className="text-xs text-slate-400 font-medium bg-slate-100/80 px-2 py-1 rounded">
+             <div className="text-xs text-slate-400 font-medium bg-slate-100/80 px-2 py-1 rounded hidden sm:block">
                Found {data?.pagination.total || 0} users
              </div>
+             <Button className="bg-[#1E293B] hover:bg-[#334155] shadow-lg gap-2" onClick={() => setIsCreateOpen(true)}>
+                <Plus className="w-4 h-4" /> Add User
+             </Button>
           </div>
         </div>
 
@@ -203,7 +264,7 @@ export default function UsersManagementPage() {
             columns={columns}
             data={data?.data || []}
             isLoading={isLoading}
-            pageCount={data?.pagination.totalPages}
+            pageCount={data?.pagination?.totalPages}
             currentPage={page}
             onPaginationChange={setPage}
             emptyMessage={

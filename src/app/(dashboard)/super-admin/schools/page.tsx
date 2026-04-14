@@ -7,15 +7,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
 import { 
-  School, 
   Plus, 
-  Search, 
   Loader2, 
   Building2, 
   Mail, 
   Fingerprint, 
   Calendar,
-  ExternalLink
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Key,
+  FolderOpen,
+  Link as LinkIcon
 } from 'lucide-react';
 
 import { adminService } from '@/features/admin/services/admin-service';
@@ -29,11 +32,24 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
+import { EditSchoolDialog } from '@/features/admin/components/edit-school-dialog';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 
 export default function SchoolsManagementPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Edit State
+  const [selectedSchool, setSelectedSchool] = useState<SchoolProfile | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  // Delete State
+  const [schoolToDelete, setSchoolToDelete] = useState<SchoolProfile | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // --- Fetch Schools ---
   const { data, isLoading } = useQuery({
@@ -48,6 +64,10 @@ export default function SchoolsManagementPage() {
       name: '',
       code: '',
       adminEmail: '',
+      imagekitPublicKey: '',
+      imagekitPrivateKey: '',
+      imagekitUrlEndpoint: '',
+      imagekitFolder: '',
     }
   });
 
@@ -59,10 +79,24 @@ export default function SchoolsManagementPage() {
       registrationForm.reset();
       queryClient.invalidateQueries({ queryKey: ['admin-schools'] });
     },
-    onError: (err: any) => {
+    onError: (err: { response?: { data?: { message?: string } } }) => {
       toast.error(err?.response?.data?.message || 'Failed to register school');
     }
   });
+
+  // --- Delete Mutation ---
+  const handleDeleteConfirm = async () => {
+    if (!schoolToDelete) return;
+    try {
+      await adminService.deleteSchool(schoolToDelete.id);
+      toast.success('School marked as deleted (inactive).');
+      queryClient.invalidateQueries({ queryKey: ['admin-schools'] });
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Failed to delete school');
+      throw err;
+    }
+  };
 
   // --- Table Columns ---
   const columns: ColumnDef<SchoolProfile>[] = [
@@ -86,7 +120,7 @@ export default function SchoolsManagementPage() {
       cell: ({ row }) => (
         <div className="flex items-center gap-2 text-slate-600">
           <Mail className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-sm">{row.original.adminEmail}</span>
+          <span className="text-sm">{row.original.adminEmail || 'N/A'}</span>
         </div>
       ),
     },
@@ -109,11 +143,34 @@ export default function SchoolsManagementPage() {
     {
       id: 'actions',
       header: () => <div className="text-right">Actions</div>,
-      cell: () => (
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 gap-2">
-            View Profile <ExternalLink className="w-3 h-3" />
-          </Button>
+      cell: ({ row }) => (
+        <div className="flex justify-end pr-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" className="h-8 w-8 p-0" />}>
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[160px]">
+              <DropdownMenuItem
+                className="gap-2 cursor-pointer"
+                onClick={() => {
+                  setSelectedSchool(row.original);
+                  setIsEditDialogOpen(true);
+                }}
+              >
+                <Edit className="w-4 h-4 text-slate-500" /> Edit Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 cursor-pointer text-rose-600 focus:text-rose-600"
+                onClick={() => {
+                  setSchoolToDelete(row.original);
+                  setIsDeleteDialogOpen(true);
+                }}
+              >
+                <Trash2 className="w-4 h-4" /> Soft Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ),
     },
@@ -130,13 +187,11 @@ export default function SchoolsManagementPage() {
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger>
-            <Button className="bg-[#1E293B] hover:bg-[#334155] gap-2 shadow-lg shadow-indigo-500/10">
+          <DialogTrigger render={<Button className="bg-[#1E293B] hover:bg-[#334155] gap-2 shadow-lg shadow-indigo-500/10" />}>
               <Plus className="w-4 h-4" />
               Onboard New School
-            </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Register School</DialogTitle>
               <DialogDescription>
@@ -146,7 +201,7 @@ export default function SchoolsManagementPage() {
 
             <form onSubmit={registrationForm.handleSubmit((v) => registerMutation.mutate(v))} className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full School Name</Label>
+                <Label htmlFor="name">Full School Name *</Label>
                 <div className="relative">
                   <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <Input 
@@ -163,7 +218,7 @@ export default function SchoolsManagementPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="code">School Code (Unique Id)</Label>
+                  <Label htmlFor="code">School Code (Unique)*</Label>
                   <div className="relative">
                     <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input 
@@ -179,7 +234,7 @@ export default function SchoolsManagementPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Admin Email</Label>
+                  <Label htmlFor="email">Admin Email *</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input 
@@ -194,6 +249,73 @@ export default function SchoolsManagementPage() {
                   )}
                 </div>
               </div>
+
+              <Accordion className="w-full mt-4">
+                <AccordionItem value="advanced-settings" className="border-slate-200">
+                  <AccordionTrigger className="text-sm font-semibold text-slate-700 hover:text-indigo-600">
+                    Advanced Settings (ImageKit Credentials)
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-4 pb-2 space-y-4">
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="ik-pub">Public Key</Label>
+                      <div className="relative">
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <Input 
+                          id="ik-pub" 
+                          {...registrationForm.register('imagekitPublicKey')} 
+                          placeholder="Optional" 
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="ik-priv">Private Key</Label>
+                      <div className="relative">
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <Input 
+                          id="ik-priv" 
+                          type="password"
+                          {...registrationForm.register('imagekitPrivateKey')} 
+                          placeholder="Optional" 
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="ik-url">URL Endpoint</Label>
+                      <div className="relative">
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <Input 
+                          id="ik-url" 
+                          {...registrationForm.register('imagekitUrlEndpoint')} 
+                          placeholder="https://ik.imagekit.io/..." 
+                          className="pl-9"
+                        />
+                      </div>
+                      {registrationForm.formState.errors.imagekitUrlEndpoint && (
+                         <p className="text-xs text-rose-500 font-medium">{registrationForm.formState.errors.imagekitUrlEndpoint.message}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="ik-folder">Folder Path</Label>
+                      <div className="relative">
+                        <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <Input 
+                          id="ik-folder" 
+                          {...registrationForm.register('imagekitFolder')} 
+                          placeholder="e.g. /school/photos" 
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
 
               <div className="pt-4">
                 <Button 
@@ -237,6 +359,21 @@ export default function SchoolsManagementPage() {
           />
         </CardContent>
       </Card>
+
+      <EditSchoolDialog 
+        school={selectedSchool}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+      />
+
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Delete School"
+        description={<>Are you sure you want to deactivate <b>{schoolToDelete?.name}</b>? This action will suspend access for all associated staffs and prevent further ID card printing.</>}
+        onConfirm={handleDeleteConfirm}
+        confirmText="Deactivate School"
+      />
 
     </div>
   );

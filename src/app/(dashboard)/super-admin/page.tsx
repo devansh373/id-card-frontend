@@ -8,7 +8,7 @@ import {
   TrendingUp, 
   Loader2, 
   ArrowUpRight, 
-  Calendar, 
+   
   Building2,
   Clock
 } from 'lucide-react';
