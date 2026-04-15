@@ -5,7 +5,7 @@ import axios from 'axios';
  * withCredentials: true is required for HTTP-only cookies
  */
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL + '/api',
+  baseURL: '/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
