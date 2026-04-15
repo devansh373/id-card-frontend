@@ -243,7 +243,7 @@ export default function LoginPage() {
               type="button"
               id="guest-login-submit"
               onClick={handleGuestLogin}
-              className="w-full h-11 border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 border transition-all font-medium rounded-lg"
+              className="w-full h-11 border-slate-200 text-slate-50 hover:bg-slate-50 hover:text-slate-900 border transition-all font-medium rounded-lg"
             >
               <UserCircle className="w-4 h-4 mr-2" />
               Access as Guest
