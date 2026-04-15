@@ -221,8 +221,22 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-slate-100">
-              <p className="text-center text-xs text-slate-400">
+            <div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
+              <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 flex gap-3">
+                <div className="shrink-0">
+                  <Eye className="w-4 h-4 text-amber-600 mt-0.5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] font-medium text-amber-800 leading-tight">
+                    Performance Note
+                  </p>
+                  <p className="text-[10px] text-amber-700 leading-normal">
+                    The backend is hosted on a free tier. The first sign-in request may take up to 50 seconds to "wake up" the server. Thank you for your patience!
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-center text-[10px] text-slate-400">
                 Your session is secured with HTTP-only cookies.
               </p>
             </div>
