@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2, CreditCard, GraduationCap } from 'lucide-react';
+import { Eye, EyeOff, Loader2, CreditCard, GraduationCap, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,6 +58,15 @@ export default function LoginPage() {
         'Invalid credentials. Please try again.';
       toast.error(message);
     }
+  };
+
+  const handleGuestLogin = () => {
+    form.setValue('email', process.env.NEXT_PUBLIC_GUEST_EMAIL || '');
+    form.setValue('password', process.env.NEXT_PUBLIC_GUEST_PASSWORD || '');
+    // Small delay to let the user see the auto-fill
+    setTimeout(() => {
+      form.handleSubmit(onSubmit)();
+    }, 500);
   };
 
   return (
@@ -221,6 +230,25 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-100" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase">
+                <span className="bg-white px-2 text-slate-400">Or preview the project</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              id="guest-login-submit"
+              onClick={handleGuestLogin}
+              className="w-full h-11 border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 border transition-all font-medium rounded-lg"
+            >
+              <UserCircle className="w-4 h-4 mr-2" />
+              Access as Guest
+            </Button>
+
             <div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
               <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 flex gap-3">
                 <div className="shrink-0">
@@ -235,10 +263,6 @@ export default function LoginPage() {
                   </p>
                 </div>
               </div>
-
-              <p className="text-center text-[10px] text-slate-400">
-                Your session is secured with HTTP-only cookies.
-              </p>
             </div>
           </div>
 
