@@ -14,12 +14,14 @@ import {
   Clock,
   LayoutGrid,
   List,
-  Filter
+  Filter,
+  ImagePlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useDebounce } from 'use-debounce';
 import Image from 'next/image';
+import axios from 'axios';
 
 import { studentService } from '@/features/students/services/student-service';
 import { idCardService } from '@/features/id-cards/services/id-card-service';
@@ -30,7 +32,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { FileUpload } from '@/components/shared/file-upload';
 import { CardPreview } from '@/features/id-cards/components/card-preview';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +63,57 @@ export default function SchoolAdminIDCardsPage() {
     },
     onError: () => toast.error('Failed to trigger generation'),
   });
+
+  // --- Photo Upload Component Embedded in Cell ---
+  const PhotoUploadCell = ({ student }: { student: Student }) => {
+    const [file, setFile] = useState<File[]>([]);
+    const [isOpen, setIsOpen] = useState(false);
+    
+    const mutation = useMutation({
+      mutationFn: (f: File) => studentService.uploadPhoto(student.id, f),
+      onSuccess: () => {
+        toast.success(`Photo uploaded for ${student.name}`);
+        setIsOpen(false);
+        setFile([]);
+        queryClient.invalidateQueries({ queryKey: ['admin-id-cards'] });
+      },
+      onError: (err: unknown) => {
+        if (axios.isAxiosError<{ message: string }>(err)) {
+          toast.error(err.response?.data?.message || 'Upload failed');
+        } else {
+          toast.error('An unexpected error occurred');
+        }
+      }
+    });
+
+    const handleSave = () => {
+      if (file[0]) mutation.mutate(file[0]);
+    };
+
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger>
+          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
+             <ImagePlus className="w-5 h-5" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Photo</DialogTitle>
+            <DialogDescription>Select a clear front-facing passport style photo for {student.name}.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+             <FileUpload value={file} onChange={setFile} description="JPG/PNG, max 5MB (Passport Size)" />
+          </div>
+          <div className="flex justify-end">
+             <Button onClick={handleSave} disabled={file.length === 0 || mutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 font-bold">
+               {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save Photo
+             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   const columns: ColumnDef<Student>[] = [
     {
@@ -122,21 +176,31 @@ export default function SchoolAdminIDCardsPage() {
     {
       id: 'actions',
       header: () => <div className="text-right">Actions</div>,
-      cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-           <Button variant="ghost" size="sm" onClick={() => setPreviewingStudent(row.original)} className="text-indigo-600 font-bold">
-              <Eye className="w-4 h-4 mr-2" /> Preview
-           </Button>
-           <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => generateMutation.mutate([row.original.id])}
-            disabled={generateMutation.isPending}
-           >
-              <RefreshCcw className={cn("w-4 h-4 text-slate-400", generateMutation.isPending && "animate-spin")} />
-           </Button>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const hasPhoto = !!row.original.photoUrl || row.original.photoStatus === 'APPROVED';
+        
+        return (
+          <div className="flex justify-end gap-2">
+            {hasPhoto ? (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => setPreviewingStudent(row.original)} className="text-indigo-600 font-bold">
+                    <Eye className="w-4 h-4 mr-2" /> Preview
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => generateMutation.mutate([row.original.id])}
+                  disabled={generateMutation.isPending}
+                >
+                    <RefreshCcw className={cn("w-4 h-4 text-slate-400", generateMutation.isPending && "animate-spin")} />
+                </Button>
+              </>
+            ) : (
+              <PhotoUploadCell student={row.original} />
+            )}
+          </div>
+        );
+      },
     },
   ];
 
