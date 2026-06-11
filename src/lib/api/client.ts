@@ -4,8 +4,10 @@ import axios from 'axios';
  * Base axios instance configured with background project defaults
  * withCredentials: true is required for HTTP-only cookies
  */
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5055';
+
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_URL}/api`,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
