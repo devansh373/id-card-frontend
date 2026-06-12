@@ -49,6 +49,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
 
   // 🖱️ Mouse tracking for 3D Parallax & Glow
   const x = useMotionValue(0);
@@ -108,12 +109,17 @@ export default function LoginPage() {
     }
   };
 
-  const handleGuestLogin = () => {
-    const guestEmail = process.env.NEXT_PUBLIC_GUEST_EMAIL || '';
-    const guestPassword = process.env.NEXT_PUBLIC_GUEST_PASSWORD || '';
-    
-    // Submit directly without populating the form
-    onSubmit({ email: guestEmail, password: guestPassword });
+  const handleGuestLogin = async () => {
+    setIsGuestLoading(true);
+    try {
+      const guestEmail = process.env.NEXT_PUBLIC_GUEST_EMAIL || '';
+      const guestPassword = process.env.NEXT_PUBLIC_GUEST_PASSWORD || '';
+      
+      // Submit directly without populating the form
+      await onSubmit({ email: guestEmail, password: guestPassword });
+    } finally {
+      setIsGuestLoading(false);
+    }
   };
 
   return (
@@ -356,10 +362,20 @@ export default function LoginPage() {
                 type="button"
                 id="guest-login-submit"
                 onClick={handleGuestLogin}
+                disabled={isGuestLoading || isSubmitting}
                 className="w-full h-11 border-slate-200 text-slate-50 hover:bg-slate-50 hover:text-slate-900 border transition-all font-medium rounded-lg active:scale-95"
               >
-                <UserCircle className="w-4 h-4 mr-2" />
-                Access as Guest
+                {isGuestLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Accessing as Guest…
+                  </>
+                ) : (
+                  <>
+                    <UserCircle className="w-4 h-4 mr-2" />
+                    Access as Guest
+                  </>
+                )}
               </Button>
             </motion.div>
 
